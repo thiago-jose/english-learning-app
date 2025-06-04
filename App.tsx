@@ -3,8 +3,8 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View } from 'react-native';
 import { Amplify } from 'aws-amplify';
 import { withAuthenticator } from '@aws-amplify/ui-react-native';
-import amplifyconfig from './amplifyconfiguration.json';
-import MainApp from './src/components/MainApp';
+import amplifyconfig from './amplify_outputs.json';
+import MainApp from './src/app/MainApp';
 
 Amplify.configure(amplifyconfig);
 
