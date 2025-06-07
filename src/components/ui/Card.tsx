@@ -1,23 +1,40 @@
 import React from 'react';
 import { View, ViewProps } from 'react-native';
-import { styled } from 'nativewind';
-
-const StyledView = styled(View);
 
 interface CardProps extends ViewProps {
   children: React.ReactNode;
-  variant?: 'default' | 'elevated';
+  variant?: 'default' | 'elevated' | 'outlined';
+  className?: string;
 }
 
-export default function Card({ children, variant = 'default', ...props }: CardProps) {
+export default function Card({ 
+  children, 
+  variant = 'default', 
+  className = '',
+  ...props 
+}: CardProps) {
+  const getVariantClasses = () => {
+    switch (variant) {
+      case 'elevated':
+        return 'bg-white shadow-lg shadow-black/10';
+      case 'outlined':
+        return 'bg-white border border-gray-200';
+      default:
+        return 'bg-white shadow-md shadow-black/5';
+    }
+  };
+
   return (
-    <StyledView
+    <View 
+      className={`
+        ${getVariantClasses()}
+        rounded-xl
+        p-4
+        ${className}
+      `}
       {...props}
-      className={`p-4 rounded-lg bg-white ${
-        variant === 'elevated' ? 'shadow-lg' : 'border border-gray-200'
-      }`}
     >
       {children}
-    </StyledView>
+    </View>
   );
-} 
+}

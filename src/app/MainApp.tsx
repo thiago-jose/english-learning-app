@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   Alert,
   ScrollView,
   SafeAreaView,
@@ -14,6 +12,8 @@ import type { Schema } from '../../amplify/data/resource';
 import WordService from '../services/WordService';
 import VoiceRecorder from './VoiceRecorder';
 import WordList from './WordList';
+import Button from '../components/ui/Button';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 
 const client = generateClient<Schema>();
 
@@ -115,85 +115,55 @@ export default function MainApp() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>English Learning App</Text>
-        <Text style={styles.subtitle}>
+    <SafeAreaView className="flex-1 bg-gray-50">
+      {/* Header */}
+      <View className="bg-primary-500 px-5 py-6">
+        <Text className="text-2xl font-bold text-white text-center mb-1">
+          English Learning App
+        </Text>
+        <Text className="text-base text-primary-100 text-center">
           {currentUser ? `Welcome, ${currentUser.username}` : 'Welcome!'}
         </Text>
       </View>
 
-      <ScrollView style={styles.content}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Voice Input</Text>
+      <ScrollView className="flex-1 px-5 py-5">
+        {/* Voice Input Section */}
+        <View className="mb-8">
+          <Text className="text-xl font-bold text-gray-800 mb-4">
+            Voice Input
+          </Text>
           <VoiceRecorder onTranscription={handleVoiceInput} />
           
-          <TouchableOpacity 
-            style={styles.testButton}
+          <Button
+            title="Test with Hardcoded Word"
             onPress={handleTestHardcodedWord}
+            variant="success"
             disabled={loading}
-          >
-            <Text style={styles.testButtonText}>
-              Test with Hardcoded Word
-            </Text>
-          </TouchableOpacity>
+            loading={loading}
+            className="mt-3"
+          />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>
-            My Words ({words.length})
-          </Text>
-          <WordList words={words} loading={loading} onRefresh={loadWords} />
+        {/* Words Section */}
+        <View className="mb-8">
+          <View className="flex-row items-center justify-between mb-4">
+            <Text className="text-xl font-bold text-gray-800">
+              My Words
+            </Text>
+            <View className="bg-primary-100 px-3 py-1 rounded-full">
+              <Text className="text-primary-700 font-semibold text-sm">
+                {words.length}
+              </Text>
+            </View>
+          </View>
+          
+          {loading && words.length === 0 ? (
+            <LoadingSpinner className="py-8" />
+          ) : (
+            <WordList words={words} loading={loading} onRefresh={loadWords} />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f5f5f5',
-  },
-  header: {
-    padding: 20,
-    backgroundColor: '#4A90E2',
-    alignItems: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: 'white',
-    marginBottom: 5,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: 'white',
-    opacity: 0.9,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
-  section: {
-    marginBottom: 30,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 15,
-    color: '#333',
-  },
-  testButton: {
-    backgroundColor: '#50C878',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  testButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-});

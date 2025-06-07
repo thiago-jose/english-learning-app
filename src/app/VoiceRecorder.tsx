@@ -3,12 +3,12 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
   Alert,
   Animated,
 } from 'react-native';
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
+import Card from '../components/ui/Card';
 
 interface VoiceRecorderProps {
   onTranscription: (text: string) => void;
@@ -133,96 +133,50 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
     }
   };
 
+  const getStatusText = () => {
+    if (isRecording) {
+      return 'Recording... Say "save this word: [word]"';
+    } else if (isProcessing) {
+      return 'Processing your voice...';
+    } else {
+      return 'Tap to start recording';
+    }
+  };
+
+  const getStatusColor = () => {
+    if (isRecording) {
+      return 'text-danger-600';
+    } else if (isProcessing) {
+      return 'text-warning-600';
+    } else {
+      return 'text-gray-700';
+    }
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.instruction}>
-        {isRecording 
-          ? 'Recording... Say "save this word: [word]"' 
-          : isProcessing
-          ? 'Processing your voice...'
-          : 'Tap to start recording'}
+    <Card variant="elevated" className="items-center">
+      <Text className={`text-base text-center mb-5 font-medium ${getStatusColor()}`}>
+        {getStatusText()}
       </Text>
       
-      <Animated.View style={[
-        styles.recordButtonContainer,
-        { transform: [{ scale: pulseAnim }] }
-      ]}>
+      <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
         <TouchableOpacity
-          style={[
-            styles.recordButton,
-            isRecording && styles.recordButtonActive,
-            isProcessing && styles.recordButtonProcessing,
-          ]}
+          className={`
+            w-20 h-20 rounded-full items-center justify-center shadow-lg
+            ${isRecording ? 'bg-danger-500' : isProcessing ? 'bg-warning-500' : 'bg-primary-500'}
+          `}
           onPress={handleRecordPress}
           disabled={isProcessing}
         >
-          <Text style={styles.recordButtonText}>
+          <Text className="text-3xl">
             {isRecording ? '🔴' : isProcessing ? '⏳' : '🎤'}
           </Text>
         </TouchableOpacity>
       </Animated.View>
 
-      <Text style={styles.hint}>
+      <Text className="text-sm text-gray-500 italic text-center mt-4">
         Example: "Save this word: endeavor"
       </Text>
-    </View>
+    </Card>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    padding: 20,
-    backgroundColor: 'white',
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  instruction: {
-    fontSize: 16,
-    textAlign: 'center',
-    marginBottom: 20,
-    color: '#333',
-    fontWeight: '500',
-  },
-  recordButtonContainer: {
-    marginBottom: 15,
-  },
-  recordButton: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#4A90E2',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
-  recordButtonActive: {
-    backgroundColor: '#E74C3C',
-  },
-  recordButtonProcessing: {
-    backgroundColor: '#F39C12',
-  },
-  recordButtonText: {
-    fontSize: 30,
-  },
-  hint: {
-    fontSize: 14,
-    color: '#666',
-    fontStyle: 'italic',
-    textAlign: 'center',
-  },
-});
