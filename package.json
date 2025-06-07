@@ -11,7 +11,7 @@
   "dependencies": {
     "@aws-amplify/ui-react-native": "^2.5.3",
     "@aws-sdk/client-bedrock-runtime": "^3.821.0",
-    "@aws-sdk/client-transcribe": "^3.821.0",
+    "@aws-sdk/client-transcribe": "^3.826.0",
     "@expo/metro-runtime": "~5.0.4",
     "@types/react-native": "^0.72.8",
     "aws-amplify": "^6.15.0",

@@ -9,9 +9,16 @@ import {
 import { Audio } from 'expo-av';
 import * as FileSystem from 'expo-file-system';
 import Card from '../components/ui/Card';
+import TranscribeService from '../services/TranscribeService';
+
+interface TranscriptionResult {
+  text: string;
+  jobName: string;
+  audioFileName: string;
+}
 
 interface VoiceRecorderProps {
-  onTranscription: (text: string) => void;
+  onTranscription: (result: TranscriptionResult) => void;
 }
 
 export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
@@ -91,34 +98,10 @@ export default function VoiceRecorder({ onTranscription }: VoiceRecorderProps) {
 
   const processAudioFile = async (uri: string) => {
     try {
-      // For now, we'll simulate speech-to-text processing
-      // In a real implementation, you would:
-      // 1. Upload the audio file to S3
-      // 2. Use AWS Transcribe to convert speech to text
-      // 3. Get the transcription result
-      
       console.log('Processing audio file:', uri);
-      
-      // Simulate processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // For testing, we'll use a mock transcription
-      // In production, replace this with actual AWS Transcribe integration
-      const mockTranscriptions = [
-        "save this word: endeavor",
-        "save this word: perseverance", 
-        "save this word: serendipity",
-        "save this word: eloquent",
-        "save this word: resilient"
-      ];
-      
-      const randomTranscription = mockTranscriptions[
-        Math.floor(Math.random() * mockTranscriptions.length)
-      ];
-      
-      console.log('Mock transcription:', randomTranscription);
-      onTranscription(randomTranscription);
-      
+      const result = await TranscribeService.transcribeAudio(uri);
+      console.log('Transcription result:', result);
+      onTranscription(result);
     } catch (error) {
       console.error('Error processing audio:', error);
       Alert.alert('Error', 'Failed to process audio recording');

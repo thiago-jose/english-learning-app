@@ -31,6 +31,12 @@ interface Word {
   createdAt: string;
 }
 
+interface TranscriptionResult {
+  text: string;
+  jobName: string;
+  audioFileName: string;
+}
+
 export default function MainApp() {
   const [words, setWords] = useState<Word[]>([]);
   const [loading, setLoading] = useState(false);
@@ -63,13 +69,12 @@ export default function MainApp() {
     }
   };
 
-  const handleVoiceInput = async (transcribedText: string) => {
+  const handleVoiceInput = async (result: TranscriptionResult) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
       // Process the transcribed text
       const wordData = await WordService.processSpeechInput(
-        transcribedText,
+        result.text,
         currentUser?.userId || 'anonymous'
       );
       
@@ -91,7 +96,7 @@ export default function MainApp() {
 
         if (data) {
           setWords(prev => [data as Word, ...prev]);
-          Alert.alert('Success', `Word "${wordData.word}" saved successfully!`);
+          Alert.alert('Success', `Word "${data.word}" saved successfully!`);
         }
       }
     } catch (error) {
@@ -105,10 +110,12 @@ export default function MainApp() {
   const handleTestHardcodedWord = async () => {
     try {
       setLoading(true);
-      
-      // Test with a hardcoded word
       const testInput = "save this word: endeavor";
-      await handleVoiceInput(testInput);
+      await handleVoiceInput({
+        text: testInput,
+        jobName: 'test-job',
+        audioFileName: 'test-audio.m4a'
+      });
     } catch (error) {
       console.error('Error testing hardcoded word:', error);
     }
