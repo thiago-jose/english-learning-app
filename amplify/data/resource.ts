@@ -43,6 +43,19 @@ const schema = a.schema({
     .authorization((allow) => [
       allow.owner().to(['read', 'create', 'update', 'delete']),
     ]),
+  
+  TranscriptionJob: a
+    .model({
+      id: a.id(),
+      jobName: a.string().required(),
+      status: a.string().required(),
+      audioFileKey: a.string().required(),
+      transcriptionText: a.string(),
+      languageCode: a.string(),
+      createdAt: a.datetime(),
+      updatedAt: a.datetime(),
+    })
+    .authorization((allow) => [allow.owner()]),
 });
 
 export type Schema = ClientSchema<typeof schema>;

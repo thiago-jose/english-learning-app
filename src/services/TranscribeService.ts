@@ -1,184 +1,236 @@
-import { uploadData, remove } from 'aws-amplify/storage';
-import { 
-  TranscribeClient, 
-  StartTranscriptionJobCommand, 
-  GetTranscriptionJobCommand, 
-  TranscriptionJobStatus,
-  LanguageCode
-} from '@aws-sdk/client-transcribe';
-import { Amplify } from 'aws-amplify';
+import { uploadData, getUrl } from 'aws-amplify/storage';
+import { generateClient } from 'aws-amplify/data';
+import { post } from 'aws-amplify/api';
+import type { Schema } from '../../amplify/data/resource';
+
+const client = generateClient<Schema>();
 
 // Types
-interface TranscriptionResult {
+export interface TranscriptionResult {
   text: string;
   jobName: string;
   audioFileName: string;
 }
 
 interface TranscribeOptions {
-  languageCode?: LanguageCode;
+  languageCode?: string;
   maxRetries?: number;
   pollingInterval?: number;
 }
 
-// Custom error types
 class TranscribeError extends Error {
-  constructor(message: string, public readonly originalError?: Error) {
+  constructor(message: string, public originalError?: Error) {
     super(message);
     this.name = 'TranscribeError';
   }
 }
 
-class TranscriptionJobError extends TranscribeError {
-  constructor(message: string, public readonly jobName: string, originalError?: Error) {
-    super(message, originalError);
-    this.name = 'TranscriptionJobError';
-  }
-}
-
-class TranscribeService {
-  private transcribeClient: TranscribeClient;
+export class TranscribeService {
   private readonly defaultOptions: TranscribeOptions = {
-    languageCode: LanguageCode.EN_US,
-    maxRetries: 3,
+    languageCode: 'en-US',
+    maxRetries: 15,
     pollingInterval: 2000,
   };
-  private readonly bucketName: string;
-  private readonly region: string;
-
-  constructor() {
-    // Get configuration from environment variables
-    this.bucketName = process.env.AWS_USER_FILES_S3_BUCKET || 'your-bucket-name';
-    this.region = process.env.AWS_REGION || 'us-east-1';
-    
-    this.transcribeClient = new TranscribeClient({
-      region: this.region,
-    });
-  }
 
   private async uploadAudioFile(audioUri: string): Promise<string> {
     try {
-      const fileName = `audio-${Date.now()}.m4a`;
+      const fileName = `audio-files/audio-${Date.now()}.m4a`;
       const response = await fetch(audioUri);
-      const blob = await response.blob();
+      const blob = await response.blob();      
       
       await uploadData({
-        key: fileName,
+        path: fileName,
         data: blob,
         options: {
-          contentType: 'audio/m4a',
-          bucket: this.bucketName,
+          contentType: 'audio/m4a'
         }
       });
 
+      // it seems the uploadData may be async
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       return fileName;
     } catch (error) {
       throw new TranscribeError('Failed to upload audio file', error as Error);
     }
   }
 
-  private async startTranscriptionJob(fileName: string, options: TranscribeOptions): Promise<string> {
+  /* private async startTranscriptionJob(fileName: string, options: TranscribeOptions): Promise<string> {
     try {
-      const jobName = `transcription-${Date.now()}`;
-      const startCommand = new StartTranscriptionJobCommand({
-        TranscriptionJobName: jobName,
-        LanguageCode: options.languageCode || LanguageCode.EN_US,
-        Media: {
-          MediaFileUri: `s3://${this.bucketName}/${fileName}`,
+      const jobName = `transcription-${Date.now()}`;      
+
+      const response = await post({
+        apiName: 'Transcription-Service',
+        path: '/transcribe',
+        options: {
+          body: {
+            action: "startTranscription",
+            audioFileKey: fileName,
+            jobName,
+            languageCode: options.languageCode || 'en-US',
+          },
         },
-        OutputBucketName: this.bucketName,
       });
 
-      await this.transcribeClient.send(startCommand);
-      return jobName;
-    } catch (error) {
-      throw new TranscriptionJobError('Failed to start transcription job', '', error as Error);
-    }
-  }
+      const responseData = await response.response as unknown as Response;
+      const jsonData = await responseData.json();
+      console.log('Transcription job response:', jsonData);
+      
+      if (!jsonData.jobName) {
+        throw new TranscribeError('Failed to start transcription job');
+      }
 
-  private async waitForTranscriptionCompletion(jobName: string, options: TranscribeOptions): Promise<string> {
+      return jsonData.jobName;
+    } catch (error) {
+      console.error('Start transcription job error:', error);
+      throw new TranscribeError('Failed to start transcription job', error as Error);
+    }
+  } */
+
+    private async startTranscriptionJob(fileName: string, options: TranscribeOptions): Promise<string> {
+      try {
+        const jobName = `transcription-${Date.now()}`;      
+        const endpoint = 'https://iruqxtjjnh.execute-api.us-east-1.amazonaws.com/prod';
+    
+        const response = await fetch(`${endpoint}/transcribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: "startTranscription",
+            audioFileKey: fileName,
+            jobName,
+            languageCode: options.languageCode || 'en-US',
+          }),
+        });
+    
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+    
+        const jsonData = await response.json();
+        console.log('Transcription job response:', jsonData);
+        
+        if (!jsonData.jobName) {
+          throw new TranscribeError('Failed to start transcription job');
+        }
+    
+        return jsonData.jobName;
+      } catch (error) {
+        console.error('Start transcription job error:', error);
+        throw new TranscribeError('Failed to start transcription job', error as Error);
+      }
+    }
+/* 
+  private async pollTranscriptionStatus(jobName: string, options: TranscribeOptions): Promise<string> {
+    const maxAttempts = options.maxRetries || this.defaultOptions.maxRetries || 5;
+    const interval = options.pollingInterval || this.defaultOptions.pollingInterval || 2000;
     let attempts = 0;
-    const maxAttempts = options.maxRetries || this.defaultOptions.maxRetries!;
 
     while (attempts < maxAttempts) {
       try {
-        const getCommand = new GetTranscriptionJobCommand({
-          TranscriptionJobName: jobName,
+        const response = await post({
+          apiName: "Transcription-Service",
+          path: "/transcribe",
+          options: {
+            body: {
+              action: "getTranscriptionStatus",
+              jobName
+            },
+          },
         });
 
-        const result = await this.transcribeClient.send(getCommand);
-        const status = result.TranscriptionJob?.TranscriptionJobStatus;
-
-        if (status === TranscriptionJobStatus.COMPLETED) {
-          return result.TranscriptionJob?.Transcript?.TranscriptFileUri || '';
-        } else if (status === TranscriptionJobStatus.FAILED) {
-          throw new TranscriptionJobError('Transcription job failed', jobName);
+        const responseData = await response.response as unknown as Response;
+        const jsonData = await responseData.json();
+        console.log('Status check response:', jsonData);
+        
+        if (jsonData.status === 'COMPLETED') {
+          return jsonData.text;
+        } else if (jsonData.status === 'FAILED') {
+          throw new TranscribeError(`Transcription job failed: ${jsonData.error || 'Unknown error'}`);
         }
 
-        await new Promise(resolve => 
-          setTimeout(resolve, options.pollingInterval || this.defaultOptions.pollingInterval)
-        );
         attempts++;
+        await new Promise(resolve => setTimeout(resolve, interval));
       } catch (error) {
-        if (attempts === maxAttempts - 1) {
-          throw new TranscriptionJobError('Failed to get transcription result', jobName, error as Error);
-        }
-        attempts++;
+        console.error('Status check error:', error);
+        throw new TranscribeError('Failed to check transcription status', error as Error);
       }
     }
 
-    throw new TranscriptionJobError('Transcription job timed out', jobName);
-  }
+    throw new TranscribeError('Transcription job timed out');
+  } */
 
-  private async cleanupFiles(fileName: string, jobName: string): Promise<void> {
-    try {
-      await Promise.all([
-        remove({
-          key: fileName,
-          options: { bucket: this.bucketName }
-        }),
-        remove({
-          key: `${jobName}.json`,
-          options: { bucket: this.bucketName }
-        })
-      ]);
-    } catch (error) {
-      console.warn('Failed to cleanup files:', error);
-      // Don't throw here as this is a cleanup operation
+  private async pollTranscriptionStatus(jobName: string, options: TranscribeOptions): Promise<string> {
+    const maxAttempts = options.maxRetries || this.defaultOptions.maxRetries || 5;
+    const interval = options.pollingInterval || this.defaultOptions.pollingInterval || 2000;
+    let attempts = 0;
+    const endpoint = 'https://iruqxtjjnh.execute-api.us-east-1.amazonaws.com/prod';
+  
+    while (attempts < maxAttempts) {
+      try {
+        const response = await fetch(`${endpoint}/transcribe`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            action: "getTranscriptionStatus", 
+            jobName }),
+        });
+  
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+  
+        const jsonData = await response.json();
+        console.log('Status check response:', jsonData);
+        
+        if (jsonData.status === 'COMPLETED') {
+          return jsonData.text;
+        } else if (jsonData.status === 'FAILED') {
+          throw new TranscribeError(`Transcription job failed: ${jsonData.error || 'Unknown error'}`);
+        }
+  
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, interval));
+      } catch (error) {
+        console.error('Status check error:', error);
+        throw new TranscribeError('Failed to check transcription status', error as Error);
+      }
     }
+  
+    throw new TranscribeError('Transcription job timed out');
   }
 
   async transcribeAudio(audioUri: string, options: Partial<TranscribeOptions> = {}): Promise<TranscriptionResult> {
     const mergedOptions = { ...this.defaultOptions, ...options };
-    let audioFileName = '';
-    let jobName = '';
-
+    
     try {
-      // 1. Upload audio file
-      audioFileName = await this.uploadAudioFile(audioUri);
-
-      // 2. Start transcription job
-      jobName = await this.startTranscriptionJob(audioFileName, mergedOptions);
-
-      // 3. Wait for completion
-      const transcription = await this.waitForTranscriptionCompletion(jobName, mergedOptions);
-
+      // Upload audio file
+      const fileName = await this.uploadAudioFile(audioUri);
+      console.log(`audio file name: ${fileName}`);
+      
+      // Start transcription job
+      const jobName = await this.startTranscriptionJob(fileName, mergedOptions);
+      console.log(`transcription job name: ${jobName}`);
+      
+      // Wait for completion and get result
+      const text = await this.pollTranscriptionStatus(jobName, mergedOptions);
+      console.log(`transcripted text: ${text}`);
+      
       return {
-        text: transcription,
+        text,
         jobName,
-        audioFileName,
+        audioFileName: fileName
       };
     } catch (error) {
-      // Cleanup on error
-      if (audioFileName || jobName) {
-        await this.cleanupFiles(audioFileName, jobName);
+      console.error('Transcription error details:', error);
+      if (error instanceof TranscribeError) {
+        throw error;
       }
-      throw error;
-    } finally {
-      // Always cleanup
-      if (audioFileName || jobName) {
-        await this.cleanupFiles(audioFileName, jobName);
-      }
+      throw new TranscribeError('Transcription failed', error as Error);
     }
   }
 }
